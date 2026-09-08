@@ -22,17 +22,48 @@ connectDB();
 const app = express();
 const httpServer = createServer(app);
 
-const io = new Server(httpServer, {
-  cors: {
-    origin: [process.env.CLIENT_URL || "http://localhost:5173", "https://nova-frontend-yta0.onrender.com"],
-    credentials: true,
+// =====================================================
+// CORS CONFIGURATION
+// =====================================================
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://nova-frontend-yta0.onrender.com",
+];
+
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin
+    // (Postman, server-to-server requests, etc.)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    console.log("Blocked by CORS:", origin);
+    return callback(new Error("Not allowed by CORS"));
   },
+  credentials: true,
+};
+
+// =====================================================
+// SOCKET.IO
+// =====================================================
+
+const io = new Server(httpServer, {
+  cors: corsOptions,
 });
 
-// Make io accessible in controllers via req.app.get('io')
+// Make io accessible in controllers via req.app.get("io")
 app.set("io", io);
 
-// Socket.io connection handling for real-time collaboration
+// =====================================================
+// SOCKET.IO CONNECTION HANDLING
+// =====================================================
+
 io.on("connection", (socket) => {
   console.log(`Socket connected: ${socket.id}`);
 
@@ -53,50 +84,86 @@ io.on("connection", (socket) => {
   });
 });
 
-// Middleware
-app.use(
-  cors({
-    origin: [process.env.CLIENT_URL || "http://localhost:5173", "https://nova-frontend-yta0.onrender.com"],
-    credentials: true,
-  })
-);
+// =====================================================
+// MIDDLEWARE
+// =====================================================
+
+app.use(cors(corsOptions));
+
 app.use(express.json({ limit: "10mb" }));
+
 app.use(express.urlencoded({ extended: true }));
+
 app.use(cookieParser());
 
+// Morgan only during development
 if (process.env.NODE_ENV !== "production") {
   app.use(morgan("dev"));
 }
 
-// Rate limiting on auth routes to prevent brute force
+// =====================================================
+// RATE LIMITING
+// =====================================================
+
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 50,
   message: "Too many requests from this IP, please try again later",
 });
+
 app.use("/api/auth", authLimiter);
 
-// Health check
+// =====================================================
+// HEALTH CHECK
+// =====================================================
+
 app.get("/api/health", (req, res) => {
-  res.status(200).json({ success: true, message: "Nova API is running", timestamp: new Date() });
+  res.status(200).json({
+    success: true,
+    message: "Nova API is running",
+    timestamp: new Date(),
+  });
 });
 
-// Routes
+// =====================================================
+// ROUTES
+// =====================================================
+
 app.use("/api/auth", authRoutes);
+
 app.use("/api/users", userRoutes);
+
 app.use("/api/projects", projectRoutes);
+
 app.use("/api/tasks", taskRoutes);
+
 app.use("/api/notifications", notificationRoutes);
 
-// Error handling
+// =====================================================
+// ERROR HANDLING
+// =====================================================
+
 app.use(notFound);
+
 app.use(errorHandler);
+
+// =====================================================
+// SERVER
+// =====================================================
 
 const PORT = process.env.PORT || 5000;
 
 httpServer.listen(PORT, () => {
-  console.log(`Nova server running in ${process.env.NODE_ENV || "development"} mode on port ${PORT}`);
+  console.log(
+    `Nova server running in ${
+      process.env.NODE_ENV || "development"
+    } mode on port ${PORT}`
+  );
 });
+
+// =====================================================
+// UNHANDLED REJECTION
+// =====================================================
 
 process.on("unhandledRejection", (err) => {
   console.error(`Unhandled Rejection: ${err.message}`);
