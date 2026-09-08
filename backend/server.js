@@ -24,7 +24,7 @@ const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: [process.env.CLIENT_URL || "http://localhost:5173", "https://nova-frontend-yta0.onrender.com"],
     credentials: true,
   },
 });
@@ -56,7 +56,7 @@ io.on("connection", (socket) => {
 // Middleware
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    origin: [process.env.CLIENT_URL || "http://localhost:5173", "https://nova-frontend-yta0.onrender.com"],
     credentials: true,
   })
 );
